@@ -1,0 +1,813 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ABCDStrategy>
+
+  <!--Rules For All Short Entry Signal-->
+  <!-- https://docs.google.com/spreadsheets/d/17H7AzUzFMU-ec5Fcor_rcLDc7YwsC7WIVga1SiReGs0/edit?usp=sharing -->
+
+  <!-- Parameters Analysis -->
+  <!-- https://app.asana.com/0/564338956396680/572845824245851 -->
+
+
+  <!-- Used for Automated Entry with Trader Discretion -->
+  <!-- Will Allow you to Take Trades that meet Trader.json -->
+  <TraderEnabled value="True"/>
+
+  <!--if value is False then this will be Use for stoping any new Entries due to risk trigger -->
+  <!-- Aslo need to set same roperty in VWAPMasterStrategy.XML for overall strategy control-->
+  <AlgoEnabled value="False"/>
+
+  <!--this is the Minumum All Exchange Volume for API scaning  -->
+  <!--Value of MinimumStatsScannerAPIVolume is in Thousand -->
+  <MinimumStatsScannerAPIVolume value="10000"/>
+
+  <!-- ABCD Setup Criteria -->
+
+  <!-- Velocity Long -->
+  <HH1Min5 value="True"/>
+  <LL1Min5HH1Min15 value="True"/>
+
+  <!-- Velocity Short -->
+  <LL1Min5 value="True"/>
+  <HH1Min5LL1Min15 value="True"/>
+
+  <!-- Developer will set this to a value such 0.002 for Testing Profit Targets, this is borrow Rate per share, IMPORTANT Read VWAPMasterStrategy.xml (Borrow Rate Section) -->
+  <BorrowRate value="0"/>
+
+  <!-- MinInterimBars -->
+  <!-- November 28, 2018 - We are adding this as a Parameter so that we can Enter Early -->
+  <!-- Best Trades are the ones that are Entered  Early from ML Analysis -->
+  <!-- This is the Distance between Point A(high) and B (Deviation Low) in terms of Bars -->
+  <MinInterimBars value="3"/>
+
+  <!-- For HH1, LL1 (Trending Models) Set this to 2 and for (Reversal Entries) set this 3 since Reversals tend to happen after teh 1st 5 minutes of the Open,
+   This is the distance between A and B in the ABCD Model,
+   For VariationLoader, we will run with "3 [Standard], 2, 4" to generate more trades -->
+  <!-- For More Entries, Set <MinimumDeviatonBidAskSpread value="1" -->
+  <MinimumDeviatonBidAskSpread value="2"/>
+
+  <MinimumDeviationCents value ="0.10"/>
+  <MinimumDeviationVelocityBidAskSpread value="2"/>
+  <MinimumDeviationVwapBidAskSpread value="2"/>
+
+  <!-- Apply Short Entry PMH_IMH_PDH StopLoss for All Short Entries (Subjective Resistance)-->
+  <!-- GAP UP RESISTANCE  -->
+  <!-- If PMH > IMH => PMH + 5 X BA -->
+  <!-- If IMH > PMH => IMH + 5 X BA -->
+  <!-- If PDH > PMH => PDH + 5 X BA -->
+  <!-- If PDH > IMH => PDH + 5 X BA -->
+
+  <!-- GAP DN RESISTANCE  -->
+  <!-- If PDC > IMH => PDC + 5 X BA -->
+  <!-- If PDC > PMH => PDC + 5 X BA -->
+  <!-- DefaultStopLossBidAskSpread value="25" -->
+  <!-- This stoploss should be inside MinimumStopLossBidAskSpread and MaximumStopLossBidAskSpread -->
+  <!-- DefaultStopLossBidAskSpread value="25" -->
+  <Apply_ShortEntry_PMH_IMH_PDH_PDC_SL value="True"/>
+  
+  <!-- Variation Loader: 6, 10, 10 [Standard] + [[ {MinimumDeviatonBidAskSpread} Large: 10, 15, 15 ]] -->
+  <!-- After Analysis of MFE vs MAE BASpread across $2 - $12 Stops, 20 BASpread ~ 75 Percentile-->
+  <!-- Quick Entries might need 5, 10, 7-->
+  <MinimumStopLossBidAskSpread value="12"/>
+  <MaximumStopLossBidAskSpread value="25"/>
+  <DefaultStopLossBidAskSpread value="20"/>
+
+  <!-- Percentage of the Entry Sizes exited when the StopLoss Target is Hit -->
+  <!--//rajeev: 20190702 multi label stop loss-->
+  <!-- <StopLossTargetsBASpread value="0,1,2"/> -->
+  <StopLossTargetsBASpread value="0,5,10"/>
+  <StopLossTargetsPercentage value="40,30,30"/>
+  <IsMultiLevelStopLoss value="True"/>
+
+  <!-- Price Criteria -->
+  <MinEntryPrice value="1"/>
+  <MaxEntryPrice value="1000"/>
+
+  <!--- Volume Criteria -->
+  <MinimumPreMarketVolume value="0"/>
+
+  <!-- Compared againsts AllExchangesVolume at the Time of Entry -->
+  <!--Also used for Registering symbol in ABCDstrategy.cs file function RegisterRealTimeWithExecution-->
+  <MinimumIntradayVolume value="100000"/>
+
+  <!-- EntrySignals -->
+
+  <!-- AllowDuplicateEntryTimes = True means multiple Entries can happen at Same time -->
+  <AllowDuplicateEntryTimes value="False"/>
+
+  <!-- AllowDuplicateExitsTimes = True means multiple Exits can happen at Same time -->
+  <AllowDuplicateExitsTimes value="False"/>
+
+  <!-- <StatsAPIMaxEntriesSeconds value="0,120,900"/>
+  <StatsAPIMaxEntries value="1,4"/>
+  -->
+
+  <!-- 1. Create EntrySignals exact Signal Names
+       2. Copy Comments and Examples from Below -->
+
+  <!-- Short Entry Signals -->
+
+  <!-- Short Entry + Gap Up / Dn Criteria -->
+
+  <!-- Start New Entry Signal From KAPIL Pandey (03-09-2019) (Responsibility Munesh for Coding and Examples)-->
+  <!-- Rules by Nikhilesh -->
+  <!-- Entry is Independent -->
+  <!--Rule 1. Check  that entry is vaild or not-->
+  <!--Rule 2. Check is tickStatsData.MA_X_LL_1  || short_LL1EntryParameters.IsAlreadyLL1Triggered is true or not-->
+
+  <SHORT_LL1 value="True"/>
+  <!-- SHORT_LL1_Entry_Limit always is 1 irrespective of the Limit Set -->
+  <SHORT_LL1_Entry_Limit value="10"/>
+
+  <!-- IntradayHigh < PreMarketHigh -->
+  <!-- This is a Mirror Opposite of LONG_HH1_GR -->
+  <!-- CurrentGapPercentage is far away from the PreMarketMaxGapUpPercentage -->
+  <!-- Hence PMGapUpToCurrentGapReversalLevel should be 61.08% or Lower  {TBD from Tableau Analysis Report} -->
+  <!-- Examples: NETE - 20180308, CLWT - 20180515, TYHT - 20180518, CODX - 20180530, ACHV - 20180625-->
+  <!-- Trades.csv EntrySignal: LL1_GR_1, LL1_GR_2, LL1_GR_3 -->
+  <!-- SHORT_LL1_GR_1:  PANW - 20180604, SOLY - 20190529, TSLA - 20190301, TLRY - 20181016, BA - 20181121 -->
+  <!-- SHORT_LL1_GR_2:  TTD - 20180810, NFLX - 20181017, MTN - 20190111, GWW - 20181016, BA - 20181121 -->
+  <!-- SHORT_LL1_GR_3:  ALGN - 20181025, AVGO - 20181112, NFLX - 20181030, SPLK - 20190301, TTD - 20190509 -->
+  <!-- Rules by Meghani -->
+  <!-- Entry is Dependent -->
+  <!--RULE 1. Check that entry is vaild or not-->
+  <!--RULE 2. Check that ScanLL1Setup is true or not-->
+  <!--RULE 3. Ll1_First_ABCD_Bull_Pattern_Complete = true-->
+  <!--RULE 4. Check the Minimum 3 Interim Bars-->
+  <!--RULE 5. Check the  Retracement = Deviation High - Current Bar Low-->
+  <!--RULE 6. Check that Retracement_Max is greater that zero-->
+  <!--RULE 7. Then check the golder Retracement and BarLow is less than equal to Retracement_value-->
+  <!--RULE 8. Then check the Current Number entries is greater than zero-->
+  <!-- Checked On  : MIC,20180222 -->
+  <!-- SymbolDateFile: SHORT_LL1_GR_VERIFICATION.csv-->
+  <SHORT_LL1_GR value="True"/>
+  <SHORT_LL1_GR_Entry_Limit value="10"/>
+
+  <!-- *** IMPORTANT DISABLED On 20200125 because most trades are IL Trading Conditions which are not profitable -->
+
+  <!-- ApplyShortPreMarketLLGapUp Gaps Criteria defined by ShortEntryMinGapDnPercentage and ShortEntryMaxGapDnPercentage -->
+  <!-- ABCD Point B - (barLowAtMarketOpen - premarket Low) * PreMarketHighorLowRatioAtMarketOpen-->
+  <!-- Examples: Not Relevant and doesnt generate many trades since Gap Up Stocks rarely Break the PMLL -->
+  <!-- Trades.csv EntrySignal: PMLL_1-->
+  <!-- SHORT_PMLL:  ABMD - 20190502, AVGO - 20181112, AYX - 20181108, BA - 20181120, NFLX - 20190513 -->
+  <!-- Rules by Nikhilesh -->
+  <!-- RULE 1. Check that entry is vaild or not -->
+  <!-- RULE 2. Check Golden Retracement should be false -->
+  <!-- RULE 3. Then  Calculate_Low_Deviation -->
+  <!-- RULE 3.1. Low<lowDay or LowDay==0 -->
+  <!-- RULE 3.2. natHigh>lowDay -->
+  <!-- RULE 4. Calculate_Low_Deviation_Levels -->
+  <!-- RULE 4.1. LowDay_Deviation_High_Max == 0 -->
+  <!-- RULE 4.2. is_LowDay_Deviation_VWAP -->
+  <!-- RULE 4.3. is_LowDay_Deviation_Vel -->
+  <!-- RULE 4.4. Velocity - 2 X BidAsk Spread -->
+  <!-- RULE 4.5. barHigh >= velocityDeviationLevel -->
+  <!-- RULE 5. Then check Calculate_Low_Deviation_RetracementsPMLL -->
+
+  <SHORT_PMLL value="True" />
+  <SHORT_PMLL_Entry_Limit value="10"/>
+
+
+  
+  <!-- *** IMPORTANT - We are NOT using it since PML_BR = IL and doesnt produce good entries, Can be used for Long Entries -->
+  
+  <!-- ApplyShortPreMarketBreakOutGapUp Gaps Criteria defined by ShortEntryMinGapDnPercentage and ShortEntryMaxGapDnPercentage -->
+  <!-- IntradayHigh <= PreMarketHigh + BASpread on Insane Volume -->
+  <!-- Examples: Not Relevant and doesnt generate many trades since Gap Up Stocks rarely Break the PML -->
+  <!-- Trades.csv EntrySignal: PMLBR-->
+  <!-- SHORT_PML_BR:  AYX - 20181108, CMG - 20180731, GRUB - 20181025, NFLX - 20181023,  TSLA - 20181030 -->
+  <!-- // 20190927 - Short Entry Deleted because of bad performance (Arindam) -->
+  <!-- <SHORT_PML_BR value="True" /> -->
+
+  <!-- EntrySignal: SHORT_VWAP_FD_ABOVE_OPEN_REV -->
+  <!-- Examples: DLPN - 0402, CHEK - 0517, ZSAN - 0227, TYHT - 0518, SSLJ - 0730, AMRH - 0605, BNTC - 0709, WMLP - 0803, ARCI - 0829, ANFI - 0211 -->
+  <!-- By Arindam Sir on 20200116 -->
+  <!--RULE 1. Check Velocity is greater than VWAP-->
+  <!--RULE 2. Distance between Velocity and VWAP is atleast 50% of BidAsk Spread-->
+  <!--RULE 3. Check Is BarLow Greater Than VWAP to get two bar confirmation-->
+  <!--RULE 4. Check that Is Barlow above IntradayOpen = true-->
+  <!--RULE 5. Check IsBar HighLessThan VWAP to get three bar confirmation-->
+  <!--RULE 6. Check Is BarLow Greater Than VWAP and Check IsBar HighLessThan VWAP-->
+
+  <!-- Examples: ABIL,20180808 -->
+  <!-- SymbolDateFile: SHORT_VWAP_FD_ABOVE_OPEN_REV_Verification.csv-->
+  <SHORT_VWAP_FD_ABOVE_OPEN_REV value="True" />
+  <SHORT_VWAP_FD_ABOVE_OPEN_REV_Entry_Limit value="10"/>
+
+  <!-- EntrySignal: SHORT_VWAP_FD_BELOW_OPEN_REV -->
+  <!-- SHORT_VWAP_FD_BELOW_OPEN_REV:  TLRY - 20180919, ULTA - 20180601, NOW - 20190425, NFLX - 20181120,  ADBE - 20181206 -->
+  <!--shruti-->
+  <!--RULE 1. Distance between Velocity and VWAP is atleast 50% of BidAsk Spread-->
+  <!--RULE 2. Check Is BarLow GreaterThan VelocityAndVWAP-->
+  <!--RULE 3. Check that Is BarHigh Below IntradayOpen-->
+  <!--RULE 4. Check Is BarLow Greater Velocity Than VWAP to get two bar confirmation-->
+  <!--RULE 5. Check IsBarHighLessThanVelocityAndVWAP to get three bar confirmation-->
+  <!--RULE 6. Check Is BarLow Greater Than VelocityAndVWAP and Check IsBar HighLessThan VWAP-->
+  <!-- EXAMPLE:     DATE: ACB Symbol: 20181101-->
+
+  <!-- SHORT_VWAP_FD_BELOW_OPEN_REV:  TLRY - 20180919, ULTA - 20180601, NOW - 20190425, NFLX - 20181120,  ADBE - 20181206 -->
+  <SHORT_VWAP_FD_BELOW_OPEN_REV value="True" />
+  <SHORT_VWAP_FD_BELOW_OPEN_REV_Entry_Limit value="10"/>
+
+  <!-- EntrySignal: SHORT_VEL_FD_ABOVE_OPEN_REV (Responsibility Munesh for Coding and Examples) -->
+  <!-- Rules by Meghani -->
+  <!-- Entry is Dependent -->
+  <!--RULE 1. Check that is that valid entry or not-->
+  <!--RULE 2. Check velocity is less than VWAP then-->
+  <!--RULE 3. Check IsTwoBarHighVelocity and BarHigh<Velocity and IsBelowLookingActive is true-->
+  <!--RULE 4. Check IsBelowLookingActive and IsTwoBarHighVelocity  and BarHigh>Velocity is true-->
+  <!--RULE 5. 3 bar confirmation Above Velocity-->
+  <!--RULE 6. Check IsBarLowAboveIntradayOpen is true-->
+  <!-- Checked On  : REPH,20180904 -->
+  <!-- Rules by Deepak -->
+  <!-- Entry is Dependent -->
+  <!-- RULE 1 : First get Two bar confimation over velocity then check if barhigh greater then market open then check three bar confirmation -->
+  <!-- RULE 2 : Three Bar High Confirmation is Below Velocity. -->
+  <!-- RULE 4 : If RULE No. 3 & 4 True then Draw Entry Signal. -->
+  <!-- Checked On  : REPH,20180904 -->
+
+  <!-- SymbolDateFile: SHORT_VEL_FD_ABOVE_OPEN_REV_VERIFICATION.csv-->
+  <SHORT_VEL_FD_ABOVE_OPEN_REV value="True" />
+  <SHORT_VEL_FD_ABOVE_OPEN_REV_Entry_Limit value="10"/>
+
+  <!-- EntrySignal: SHORT_VEL_FD_BELOW_OPEN_REV  (Responsibility Munesh for Coding and Examples) -->
+  <!--Shruti-->
+  <!--RULE 1. Check that entry is vaild or not-->
+  <!--RULE 2. Check velocity is less than VWAP-->
+  <!--RULE 3. Check IsTwoBarHighVelocity and BarHigh < Velocity and IsBelowLookingActive is true-->
+  <!--RULE 4. Check IsBelowLookingActive and IsTwoBarHighVelocity  and BarHigh > Velocity is true-->
+  <!--RULE 5. 3 bar confirmation below Velocity-->
+  <!--RULE 6. Check IsBarHIgh Below IntradayOpen is True-->
+  <!--EXAMPLE:    DATE :AAOI Symbol:  20180627-->
+  <SHORT_VEL_FD_BELOW_OPEN_REV value="True" />
+  <SHORT_VEL_FD_BELOW_OPEN_REV_Entry_Limit value="10"/>
+
+  <!-- EntrySignal: SHORT_HH1_VEL_GR_REV (Responsibility Munesh for Coding and Examples)-->
+  <!-- ZSAN - 20180227, AKCA - 20190227, PTLA - 20180301, PIXY - 20180301-->
+  <!-- Rules by Meghani -->
+  <!-- Entry is Dependent -->
+
+  <!--RULE 1. Check that entry is vaild or not -->
+  <!--RULE 2. Then check ResetAllBarCondition -->
+  <!--RULE 3. In that 1st check ABCDReversalTriggered or not -->
+  <!--RULE 4. Then Velocity is less than VWAP -->
+  <!--RULE 5. Then BarHigh Is Less than VWAP -->
+  <!--RULE 6. Check these entry signal Already atriggered or not -->
+  <!--RULE 7. Check two bar confirmation over Velocity -->
+
+  <!-- Checked On  : MT,20180305 -->
+  <!-- SymbolDateFile: SHORT_HH1_VEL_GR_REV_VERIFICATION.csv-->
+
+  <SHORT_HH1_VEL_GR_REV value="True" />
+  <SHORT_HH1_VEL_GR_REV_Entry_Limit value="10"/>
+
+  <!-- ApplyShortABCDBRGapUp Trades.csv EntrySignal: SHORT_LL1_BR_GR_1, SHORT_LL1_BR_GR_2, SHORT_LL1_BR_GR_3 -->
+  <!-- SHORT_LL1_BR_GR:  ABMD - 20180726, ALGN - 20181025, CMG - 20180628, CMG - 20180523,  CTRM - 20190327 -->
+  <!-- // 20190927 - Short Entry Deleted because of bad performance (Arindam) -->
+  <!-- <SHORT_LL1_BR_GR value="True" /> -->
+
+  <!-- ApplyShortABCDBRGapUp Trades.csv EntrySignal: HHGR1Rev_1, HHGR1Rev_2 -->
+  <!-- SHORT_HH1_ABOVE_OPEN_REV_1:  ANET - 20181102, BA - 20181121, IPGP - 20180731, LRCX - 2090128,  PVH - 20190328 -->
+  <!--Deepak 20200116-->
+  <!--RULE 1: Should not be reversal-->
+  <!--RULE 1: Bar High should be less then minimum of velocity or VWAP-->
+  <!--RULE 2: Three bar confirmation for max value of either ABCDPointB or min of velocity or VWAP -->
+
+  <!-- Rules by Nikhilesh -->
+  <!--RULE 1. First check that entry is vaild or not-->
+  <!--RULE 2. Check that it should be reversal OR ParentEntryNumber is greater than or equal to MaxNumberOfEntries-->
+  <!--RULE 3. BarHigh should lower than point B-->
+  <!--RULE 4. CurrentBarlow above IntradayMarketOpen-->
+  <!--RULE 5. 3 Bar Confirmation below point B-->
+  <!--RULE 6. Price breaks Point B (of ABCD Pattern where B is BarLow of ABCD)-->
+
+  <SHORT_HH1_ABOVE_OPEN_REV value="True" />
+  <SHORT_HH1_ABOVE_OPEN_REV_Entry_Limit value="10"/>
+
+  <!-- EntrySignal: SHORT_PMH_BR_VEL_GR_REV (Responsibility Puneet for Coding and Examples) -->
+  <!--SHORT_PMH_BR_VEL_GR_REV: ZSAN - 02/27/2018 9:30:52 AM, NETE - 03/08/2018 9:30:29 AM, TBK - 04/10/2018 9:34:13 AM-->
+  <!--Deepak 20200116-->
+
+  <!--RULE 1. Check that entry is valid or not -->
+  <!--RULE 2. Check BarHigh is less than Velocity -->
+  <!--RULE 3. Check BarHigh less than PremarketHigh -->
+  <!--RULE 4. If Velocity is Above VWAP, We will go with 2 Bar Confirmation below Velocity -->
+  <!--RULE 5. If Velocity is Less than VWAP, We want 3 Bar Confirmation above Velocity -->
+
+  <SHORT_PMH_BR_VEL_GR_REV value="True" />
+  <SHORT_PMH_BR_VEL_GR_REV_Entry_Limit value="10"/>
+
+  <!-- EntrySignal: SHORT_PMH_BR_GR_REV (Responsibility Munesh for Coding and Examples) -->
+  <!--RULE 1. Check  that entry is vaild or not -->
+  <!--RULE 2. Check  Is TwoBar Confirmation of Below PreMarketHigh to get ThreeBarConfirmation -->
+
+  <SHORT_PMH_BR_GR_REV value="True"/>
+  <SHORT_PMH_BR_GR_REV_Entry_Limit value="10"/>
+
+  <!-- EntrySignal: SHORT_PMH_BR_VWAP_GR_REV (Responsibility Munesh for Coding and Examples) -->
+  <!--Deepak 20200116-->
+
+  <!--RULE 1. Check that entry is valid or not -->
+  <!--RULE 2. Check BarHigh is less than VWAP -->
+  <!--RULE 3. Check BarHigh less than PremarketHigh -->
+  <!--RULE 4. If VWAP is Above Velocity, We will go with 2 Bar Confirmation below VWAP -->
+  <!--RULE 5. If VWAP is Less than Velocity, We want 3 Bar Confirmation above Velocity -->
+
+  <SHORT_PMH_BR_VWAP_GR_REV value="True"/>
+  <SHORT_PMH_BR_VWAP_GR_REV_Entry_Limit value="10"/>
+
+  <!-- EntrySignal: SHORT_HH1_VWAP_GR_REV (Responsibility Munesh for Coding and Examples) -->
+  <!-- Shruti -->
+  <!--RULE 1. Check that entry is vaild or not -->
+  <!--RULE 2. Then check ResetAllBarCondition -->
+  <!--RULE 3. In that 1st check ABCDReversalTriggered or not -->
+  <!--RULE 4. Then VWAP is less than equal to Velocity -->
+  <!--RULE 5. Then BarHigh Is Less than VWAP -->
+  <!--RULE 6. Check these entry signal  Already atriggered or not -->
+  <!--RULE 7. Check two bar confirmation over VWAP -->
+
+  <!-- Dependent Entry - HH1 -->
+  <!--EXAMPLE:   DATE:ACB Symbol: 20190215-->
+  <SHORT_HH1_VWAP_GR_REV value="True"/>
+  <SHORT_HH1_VWAP_GR_REV_Entry_Limit value="10"/>
+
+  <!-- EntrySignal: SHORT_HH1_BELOW_OPEN_REV (Responsibility Munesh for Coding and Examples) -->
+  <!--Deepak 20200120-->
+  <!--RULE 1. First Check the EntryValid or not-->
+  <!--RULE 2. Check that it should be reversal-->
+  <!--RULE 3. BarHigh should lower than point B-->
+  <!--RULE 4. Then check in PriocessTickStatsData in that check BarHigh Below the IntradayOpen-->
+  <!--RULE 5. 3 Bar confirmation below point B-->
+  <!--RULE 6. Price breaks Point B with 3 bar confirmation-->
+  <SHORT_HH1_BELOW_OPEN_REV value="True"/>
+  <SHORT_HH1_BELOW_OPEN_REV_Entry_Limit value="10"/>
+
+  <!-- **** VERY IMPORTANT THIS SHOULD BE SET TO FALSE For VelocityStrategy and used for OptionSweepStrategy-->
+  <!--  <SHORT_IMMEDIATE_ENTRY value="False"/> -->
+  <!-- Set up Arindam for Testing -->
+  <!-- <SHORT_IMMEDIATE_ENTRY_Limit value="1"/> -->
+
+
+  <!-- EntrySignal: SHORT_PMH_ABOVE_OPEN_VEL_GR_REV (Responsibility Shruti Rules) -->
+  <!-- Calculations for PMH_CrossOverLevel -->
+  <!-- GoldenRatio is defined in VelocityStrategy as 0.61 -->
+  <!-- PMH_CrossOverLevel=((PreMarkertHigh-IntradayOpen)*GoldenRatio)+IntradayOpen-->
+  <!--Deepak 20200122-->
+
+  <!--RULE 1. Check that is entry is vaild or not -->
+  <!--RULE 2. Check Velocity is less than VWAP -->
+  <!--RULE 3. Then Check barLow is above the intradayopen -->
+  <!--RULE 4. Get PMH_CrossOverlevel(cross the golder Ratio) -->
+  <!--RULE 5. Then check IntradayMarketHigh is less than  equal to  PreMarketHigh -->
+  <!--RULE 6. Two bar confirmation over velocity -->
+  <!--RULE formula: PMH_CrossOverLevel=((PreMarkertHigh-IntradayOpen)*GoldenRatio)+IntradayOpen -->
+
+  <SHORT_PMH_ABOVE_OPEN_VEL_GR_REV value="True"/>
+  <SHORT_PMH_ABOVE_OPEN_VEL_GR_REV_Entry_Limit value="10"/>
+
+  <!-- EntrySignal: SHORT_PMH_ABOVE_OPEN_VWAP_GR_REV (Responsibility Shruti Rules) -->
+  <!--Deepak 20200122-->
+
+  <!--RULE 1. Check that is entry is vaild or not -->
+  <!--RULE 2. Check VWAP is less than Velocity -->
+  <!--RULE 3. Then Check barLow is above the intradayopen -->
+  <!--RULE 4. GetPMH_CrossOverlevel(cross the golder Ratio) -->
+  <!--RULE 5. Then check IntradayMarketHigh is less than equal PreMarketHigh -->
+  <!--RULE 6. Two bar confirmation over VWAP -->
+  <!-- formula: PMH_CrossOverLevel=((PreMarkertHigh-IntradayOpen)*GoldenRatio)+IntradayOpen -->
+
+  <SHORT_PMH_ABOVE_OPEN_VWAP_GR_REV value="True"/>
+  <SHORT_PMH_ABOVE_OPEN_VWAP_GR_REV_Entry_Limit value="10"/>
+
+  <!-- EntrySignal: SHORT_PMH_BELOW_OPEN_VEL_GR_REV (Responsibility Shruti Rules) -->
+  <!--Deepak 20200122-->
+
+  <!--RULE 1. Check that is entry is vaild or not -->
+  <!--RULE 2. Check Velocity is less than VWAP -->
+  <!--RULE 3. Then Check barLow is Below the intradayopen -->
+  <!--RULE 4. Get PMH_CrossOverlevel(cross the golder Ratio) -->
+  <!--RULE 5. Then check IntradayMarketHigh is less than equal to PreMarketHigh -->
+  <!--RULE 6. Two bar confirmation over velocity -->
+  <!-- formula: PMH_CrossOverLevel=((PreMarkertHigh-IntradayOpen)*GoldenRatio)+IntradayOpen -->
+
+  <SHORT_PMH_BELOW_OPEN_VEL_GR_REV value="True"/>
+  <SHORT_PMH_BELOW_OPEN_VEL_GR_REV_Entry_Limit value="10"/>
+
+  <!-- EntrySignal: SHORT_PMH_BELOW_OPEN_VWAP_GR_REV (Responsibility Shruti Rules) -->
+  <!--Deepak 20200122-->
+
+  <!--RULE 1. Check that is entry is vaild or not -->
+  <!--RULE 2. Check VWAP is less than Velocity -->
+  <!--RULE 3. Then Check barLow is Below the intradayopen -->
+  <!--RULE 4. GetPMH_CrossOverlevel(cross the golder Ratio) -->
+  <!--RULE 5. Then check IntradayMarketHigh is less than equal to  PreMarketHigh -->
+  <!--RULE 6. Two bar confirmation over VWAP -->
+  <!-- formula: PMH_CrossOverLevel=((PreMarkertHigh-IntradayOpen)*GoldenRatio)+IntradayOpen -->
+
+  <SHORT_PMH_BELOW_OPEN_VWAP_GR_REV value="True"/>
+  <SHORT_PMH_BELOW_OPEN_VWAP_GR_REV_Entry_Limit value="10"/>
+
+  <!--Priyanka Amir 20200401-->
+  <!--1.Check that is entry is valid or not-->
+  <!--2.Is_DistanceBetween_BB_Up_Dn_Large is greater than bbUpDn_Multiplier.-->
+  <!--2.check the VWAP greater  than equal to Velocity-->
+  <!--3.check the VWAP less  than equal to PriceVelocity_2SDup-->
+  <!--4.then check bar high is greater than PriceVelocity_2SDup-->
+  <!--5.check two bar confirmation below the Vwap-->
+  <SHORT_BB_VWAP value="True"/>
+  <SHORT_BB_VWAP_Entry_Limit value="10"/>
+
+  <!--Priyanka Amir 20200401-->
+  <!--1.Check that is entry is valid or not.-->
+  <!--2.Is_DistanceBetween_BB_Up_Dn_Large is greater than bbUpDn_Multiplier.-->
+  <!--2.then check the Velocity  greater  than equal to Vwap .-->
+  <!--3.then check Velocity is less than PriceVelocity_2SDup-->
+  <!--4.then check bar high is greater than PriceVelocity_2SDup -->
+  <!--5. check two bar confirmation below the Velocity-->
+  <SHORT_BB_VEL value="True"/>
+  <SHORT_BB_VEL_Entry_Limit value="10"/>
+
+  <!--Priyanka Amir 20200401-->
+  <!--1.Check that is entry is valid or not.-->
+  <!--2.Is_DistanceBetween_BB_Up_Dn_Large is greater than bbUpDn_Multiplier.-->
+  <!--3.then check bar low is less  than equal to  PriceVelocity_2SDdn.-->
+  <!--4.else check bar high is greater than equal to PriceVelocity_2SDup-->
+  <!--5.check two bar confirmation over the Velocity-->
+  <SHORT_BB_DN_UP value="True"/>
+  <SHORT_BB_DN_UP_Entry_Limit value="10"/>
+
+
+
+  <!-- *********** LONG ENTRY SIGNALS *********** -->
+
+  <!-- Insert Examples: -->
+  <LONG_HH1 value="False"/>
+  <LONG_HH1_Entry_Limit value="0"/>
+
+  <LONG_HH1_GR value="False"/>
+  <LONG_HH1_GR_Entry_Limit value="0"/>
+
+  <!-- New EntrySignal Sachin Chauhan 20191001  LONG_LL1_ABOVE_OPEN_REV: BIG-20180601,CODX-20180605,DISH-20180605,SABR-20180605 -->
+  <LONG_LL1_ABOVE_OPEN_REV value="False"/>
+  <LONG_LL1_ABOVE_OPEN_REV_Entry_Limit value="0"/>
+  
+  <!-- New EntrySignal Sachin Chauhan 20191003  LONG_PML_BR_VEL_GR_REV: ANF-20180601,CHGG-20180621,ENPH-20180711,FORD-20180621 -->
+  <LONG_PML_BR_VEL_GR_REV value="False"/>
+  <LONG_PML_BR_VEL_GR_REV_Entry_Limit value="0"/>
+
+  <!-- New EntrySignal Sachin Chauhan -->
+  <!--  LONG_VEL_RA_ABOVE_OPEN_REV: NKTR-20180605, FSLR-20180605, MYL-20180605-->
+  <LONG_VEL_RA_ABOVE_OPEN_REV value="False"/>
+  <LONG_VEL_RA_ABOVE_OPEN_REV_Entry_Limit value="0"/>
+
+
+  <!-- Insert Examples: -->
+  <!-- Example : GWRE -20180906 , SRCL - 20180803 , YY - 20180814 , THO - 20180607, TSLA - 20181005 -->
+  <LONG_PMHH value="False"/>
+  <LONG_PMHH_Entry_Limit value="0"/>
+
+  <!-- EntrySignal: LONG_HH1_BR_GR -->
+  <!-- // 20190927 - Short Entry Deleted because of bad performance (Arindam) -->
+  <!-- <LONG_HH1_BR_GR value="False"/> -->
+
+  <!-- EntrySignal: LONG_PML_BR_GR_REV -->
+  <LONG_PML_BR_GR_REV value="False"/>
+  <LONG_PML_BR_GR_REV_Entry_Limit value="0"/>
+
+  <!-- // 20190927 - Short Entry Deleted because of bad performance (Arindam) -->
+  <LONG_PMH_BR value="False"/>
+  <LONG_PMH_BR_Entry_Limit value="0"/>
+
+  <!-- EntrySignal: LONG_PML_BR_VWAP_GR_REV 
+  
+  Example : WDAY : 20181130 ,ANET :20190503 , CTAS: 20180926
+  -->
+
+  <LONG_PML_BR_VWAP_GR_REV value="False"/>
+  <LONG_PML_BR_VWAP_GR_REV_Entry_Limit value="0"/>
+
+
+  <!-- EntrySignal: LONG_VWAP_RA_REV -->
+  <!--
+  VWAP Rising Angel Reversal  
+  Example : TSLA : 20190118 , TTD :	20180810 , NFLX : 20181121 , AMED : 20181030
+  -->
+  <LONG_VWAP_RA_REV value="False"/>
+  <LONG_VWAP_RA_REV_Entry_Limit value="0"/>
+
+  <!-- LONG_PML_GR_REV: ALGN - 20190425, ALNY - 20180827, BA - 20181120, BPTH - 20190308, NFLX - 20181206 -->
+  <LONG_PML_GR_REV value="False"/>
+  <LONG_PML_GR_REV_Entry_Limit value="0"/>
+
+  <!-- LONG_LL1_VWAP_GR_REV: ABMD - 20190502, AVGO - 20190315, BGNE - 20190103, CHTR - 20181026, BPTH - 20190308  -->
+  <LONG_LL1_VWAP_GR_REV value="False"/>
+  <LONG_LL1_VWAP_GR_REV_Entry_Limit value="0"/>
+
+  <!-- End New Entry Signal From KAPIL Pandey (03-09-2019)-->
+
+  <!-- LONG_LL1_GR_REV_1: ABMD - 20190502, ALDX - 20180926, AVGO - 20190315, CHTR - 20181026, BPTH - 20190308 -->
+  <!-- LONG_LL1_GR_REV_2: NFLX - 20180827, LIVN - 20181120 -->
+  <LONG_LL1_GR_REV value="False"/>
+  <LONG_LL1_GR_REV_Entry_Limit value="0"/>
+
+
+  <!-- EntrySignal: LONG_PML_ABOVE_OPEN_REV (Responsibility Puneet for Coding and Examples) -->
+  <!--LONG_PML_ABOVE_OPEN_REV: PTLA - 03/01/2018, PDCO - 03/01/2018, ESPR - 05/02/2018-->
+  <LONG_PML_ABOVE_OPEN_REV value="False"/>
+  <LONG_PML_ABOVE_OPEN_REV_Entry_Limit value="0"/>
+
+  <!-- EntrySignal: LONG_VEL_RA_REV (Responsibility Puneet for Coding and Examples) -->
+  <!--LONG_VEL_RA_REV: ACIA - 02/23/2018, ABIL - 08/08/2018, ESPR - 05/02/2018-->
+  <LONG_VEL_RA_REV value="False"/>
+  <LONG_VEL_RA_REV_Entry_Limit value="0"/>
+
+  <LONG_LL1_VEL_GR_REV value="False"/>
+  <LONG_LL1_VEL_GR_REV_Entry_Limit value="0"/>
+
+  <!-- EntrySignal: LONG_VWAP_RA_ABOVE_OPEN_REV (Responsibility Puneet for Coding and Examples) -->
+  <!--LONG_VWAP_RA_ABOVE_OPEN_REV: LADR - 04/17/2018, XRAY - 08/07/2018, ESPR - 05/02/2018-->
+  <LONG_VWAP_RA_ABOVE_OPEN_REV value="False"/>
+  <LONG_VWAP_RA_ABOVE_OPEN_REV_Entry_Limit value="0"/>
+
+  <!--shruti 20200219-->
+  <LONG_PMH_ABOVE_OPEN_VWAP_GR_REV value ="False"/>
+  <LONG_PMH_ABOVE_OPEN_VWAP_GR_REV_Entry_Limit value="0"/>
+
+  <LONG_PMH_ABOVE_OPEN_VEL_GR_REV value ="False"/>
+  <LONG_PMH_ABOVE_OPEN_VEL_GR_REV_Entry_Limit value="0"/>
+
+  <LONG_PMH_BELOW_OPEN_VWAP_GR_REV value ="False"/>
+  <LONG_PMH_BELOW_OPEN_VWAP_GR_REV_Entry_Limit value="0"/>
+  
+  <LONG_PMH_BELOW_OPEN_VEL_GR_REV value ="False"/>
+  <LONG_PMH_BELOW_OPEN_VEL_GR_REV_Entry_Limit value="0"/>
+  
+
+  <!--shruti 20200220-->
+  <LONG_PML_ABOVE_OPEN_VEL_GR_REV value ="False"/>
+  <LONG_PML_ABOVE_OPEN_VEL_GR_REV_Entry_Limit value="0"/>
+  
+  <LONG_PML_ABOVE_OPEN_VWAP_GR_REV value ="False"/>
+  <LONG_PML_ABOVE_OPEN_VWAP_GR_REV_Entry_Limit value="0"/>
+
+  <LONG_PML_BELOW_OPEN_VEL_GR_REV value ="False"/>
+  <LONG_PML_BELOW_OPEN_VEL_GR_REV_Entry_Limit value="0"/>
+
+  <LONG_PML_BELOW_OPEN_VWAP_GR_REV value ="False"/>
+  <LONG_PML_BELOW_OPEN_VWAP_GR_REV_Entry_Limit value="0"/>
+  
+
+   
+
+
+  <!-- **** VERY IMPORTANT THIS SHOULD BE SET TO FALSE For VelocityStrategy and used for OptionSweepStrategy-->
+  <!-- End New Entry Signal From KAPIL Pandey (03-09-2019)-->
+  <!-- <LONG_IMMEDIATE_ENTRY value="False"/> -->
+  <!-- Set up Arindam for Testing -->
+  <!-- <LONG_IMMEDIATE_ENTRY_Limit value="5"/> -->
+
+
+
+  <!-- End New Entry Signal From KAPIL Pandey (03-09-2019)-->
+
+
+  <!--- Bid Ask and Volume Criteria -->
+  <!-- TickStatsData.BarQuoteStat_90Min.AvgBidAskSpread >= MinBidAskSpreadCents && <= MaxBidAskSpreadCents -->
+  <MinBidAskSpreadCents value="0"/>
+  <MaxBidAskSpreadCents value="200"/>
+
+  <!-- Trade Parameters -->
+  <!-- EntrySizes are for HH1_GR1, HH1_GR2, HH_GR3 -->
+  <!--<EntrySizes value="1000,1000,1000"/>
+
+  <ReversalEntrySizes value="1000,1000"/>
+
+  <PreMarketEntrySizes value="1000"/>-->
+
+  <!-- Used during Real Time trading to determine "Depth" of the Book (we want to Hit) -->
+  <OrderSlippageBASpread value="1"/>
+
+  <!-- Sachin 20191115 for get aggressive entry price value for OrderExecutor.IsRealTime (IB2, ExecutionSterlingNetMQ) -->
+  <!-- Lets say AvgBASpread = 2 cents, CurrentBid = 3.15 (Short) (InSimulation TargetEntryPrice = EntryPrice = 3.15 -->
+  <!-- In Live, TargetEntryPrice = 3.15 - GetAggressiveEntryPriceFactor * AvgBASpread = 3.15 - 3 * 2 = 3.09  -->
+  <!-- Fill Price - [3.15 - 3.09] -->
+  <GetAggressiveEntryPriceFactor value="3" />
+
+  <!-- Percentage of the Entry Sizes exited when the Profit Target is Hi, LGPT -->
+
+  <!-- Take PTs only outside BB Model -->
+  <!-- We will execute Profit Targets if the Bar OHLC is Below the BB Dn Levels -->
+  <ProfitsOutsideBBOnly value="True"/>
+
+  <!-- Large PT -->
+  <!-- We want to Shoot for Large Profit Targets untill 12 mins from Market Open when trading on Shorts -->
+  <ProfitTargetTimeDifferenceMin value="09:37:00" />
+  <!-- <ProfitTargetsBASpread value="5,10,15,20,25"/> -->
+  <!-- Large Profit Targets for first few minutes of the day -->
+  <ProfitTargetsBASpread value="5,10,15,20,25"/>
+
+  <!-- Small Profit Target -->
+  <!-- SLGPT with LSTL: 3, 5, 7 [1/2 SL], 10 [PT] / 10 Mins, 15 -->
+  <ABCDSMPTProfitTargetBASpread value="3,5,7,10,15" />
+  <!--  <ABCDSMPTProfitTargetBASpread value="3,5,7,10,15" /> -->
+  
+  <!-- Large Profit Target -->
+  <ProfitTargetsPercentage value="15,20,30,20,15"/>
+ 
+  <!-- Profit Target Rule Changes -->
+  <!-- AK and Meghani 20200716 -->
+  <!-- PT2,3,4,5 should be adjusted based on PT1 Order Price -->
+
+  <!-- For SMPT we will take 50% share size for PT4, PT5 -->
+  <SmallProfitTargetExitNumber value="4" />
+  <SmallProfitTargetExitPercentage value="50" />
+
+  <!--this is the velocity trailing profit-->
+  <IsVelocityTrailingProfitForShort value="False"/>
+  <IsVelocityTrailingProfitForLong value="False"/>
+
+  <!--bar length percentage for two bar confirmation-->
+  <!-- If the Engineer wants to generate more entries quickly then you can reduce this to 0.25 -->
+  <!-- <FirstBarLenghtPercentage value=".25"/> -->
+  <FirstBarLenghtPercentage value=".25"/>
+
+  <!-- As per discussed with Kapil, Munesh - we decided to reduce it to trigger more entries 
+      Second Bar generally requires higher high or Lower low outside the First Bar -->
+  <!-- If the Engineer wants to generate more entries quickly then you can reduce this to 0.25 -->
+  <!-- <SecondBarLenghtPercentage value=".25"/> -->
+  <SecondBarLenghtPercentage value=".25"/>
+
+ 
+
+  <!--MEGHANI and Tarun 20200407 -->
+  <!-- StatsAPI = True, When StatsAPI is true in VWAPMasterStrategy.xml, 
+  we use the following to control the number of Entries in any given time frame -->
+  <!--NOTE : KEEP BOTH PARAMETER VALUE TO 0(Zero) FOR UNLIMITED-->
+  <!-- EntrySecondModelforProd  this is the EntrySeconds and Starts at 0 -->
+  <EntrySecondModelforProd value="120,720,1800,3600,23400"/>
+  <!-- EntrySecondModelLimitforProd is the maximum number of Entries -->
+  <EntrySecondModelLimitforProd value="2,3,3,3,1"/>
+  
+  <!--MEGHANI and Tarun 20200423-->
+  <!--Use the Following to Control Entry Limit Over Others Parameter-->
+  <!--  StatsAPI = True or False, When StatsAPI is true in VWAPMasterStrategy.xml  -->
+  <OverAllEntryLimit value="20"/>
+
+  <!-- StatsAPI = True, When StatsAPI is true in VWAPMasterStrategy.xml, 
+  we use the following to control the TOTAL NUMBER of Entries for all the TimeFrames -->
+  <!-- <MaxNumberEntries value="7"/>-->
+
+  <!-- HalfStopLoss is set to 50% of InitialStopLoss -->
+  <!-- StopLoss is set to EntryPrice + 1/2 BASpr Avg after BreakEvenProfitTargetNumber PT Hit -->
+  <!-- 3rd PT Hit, SL = 50% of Initial SL and 4th PT = 0.5 X BASpr better than Entry Price -->
+  <!-- Set HalfBreakEvenProfitTargetNumber and BreakEvenProfitTargetNumber to 0 if we do not want Reset -->
+  <HalfBreakEvenProfitTargetNumber value="0"/>
+  <BreakEvenProfitTargetNumber value="0"/>
+
+  <!-- ApplyTrailingProfitTargets and VWAPTrailingProfitTargetNumber are group togehter -->
+  <!-- If use ApplyTrailingProfitTargets we wait for profit target number (VWAPTrailingProfitTargetNumber) till the conditions not meet of trailing profit target -->
+  <!-- (BarLow < newProfitTargetPrice && BidPrice < newProfitTargetPrice && (st.ProfitTargets[ptIndex].ExecuteTraling == true && st.ProfitTargets[ptIndex].ProfitTarget == true) for short entry -->
+  <!-- (BarHigh > newProfitTargetPrice && AskPrice > newProfitTargetPrice && (st.ProfitTargets[ptIndex].ExecuteTraling == true && st.ProfitTargets[ptIndex].ProfitTarget == true) for long entry -->
+  <!-- Set new traling stop loss -->
+  <ApplyTrailingProfitTargets value="False"/>
+  <!-- Profit Target Number where you start exiting using VWAP =/- BA Spread), Pt Index Starts at 1-->
+  <!-- We will give more time to 4th and 5th Fixed Profit Target Exits - because we want 4th and 5th exits to get towards EOD -->
+
+  <VWAPTrailingProfitTargetNumber value="4"/>
+  <!-- IF WE CHANGE (VWAPTrailingProfitTargetNumber) THEN WE NEED TO CHANGE (ReversalPTStartIndex) -->
+  <!-- ApplyVWAPVelocityReversal = VWAP and Velocity Reversal Reversal Exits -->
+  <ApplyVWAPVelocityReversal value="False" />
+  <!-- ReversalPTStartIndex = Velocity (2 Bar Confirmation) - Higher High (4th and 5th) - 50% (Shorts Entries) -->
+  <!-- After taking the dicided profits if market reverse then we will exit our profits of Velocity and VWAP -->
+  <!-- After 09:35 AM we modify ReversalPTStartIndex as per requirement = 1 -->
+  <!--<ReversalPTStartIndex value="4" />-->
+  <ReversalPTPercentage value="50" />
+  <ReversalPTBidAskSpread value="1.5" />
+  <ReversalPTEndTime value="09:35:00" />
+  <!--if we want to set 4th PT as Velocity reversal then we need to set VelocityReversalPTNumber = 3-->
+  <VelocityReversalPTNumber value="3" />
+
+  <!-- Timed Stops of 10 Mins from Entry, SL is reduced to Breakeven -->
+  <ApplyTimedStopLoss value="False"/>
+  <TimedStopLossMins value="40"/>
+
+
+  <!-- IMPORTANT: Not Being used -->
+  <StartEntrySeconds value="0"/>
+  <!-- IMPORTANT: If ExchangeEndTime = 16:00:00, then Change StopEntryMinutes to 380 (No Entries after 15:50:00-->
+  <!-- <StopEntryMinutes value="380"/> -->
+  <StopEntryMinutes value="90"/>
+
+  <!-- TBD: We will send out Passive Orders to Exit at this Time -->
+  <!-- If ExchangeEndTime is 11:11:11, then Start StartExitMinutes = 90 -->
+  <!-- IMPORTANT: If ExchangeEndTime = 16:00:00, then StartExitMinutes  = 384 (Exit Happens after 15:54:00) -->
+  <!-- <StartExitMinutes value="380"/> -->
+  <StartExitMinutes value="375"/>
+
+  <!-- EOD order is sent out at this time -->
+  <!-- If ExchangeEndTime is 11:11:11, then Start StopExitMinutes = 95 -->
+  <!-- IMPORTANT:If ExchangeEndTime = 16:00:00, then StopExitMinutes = 386 (Final Exit happens after 15:56:00)-->
+  <!-- <StopExitMinutes value="380"/> -->
+  <StopExitMinutes value="380"/>
+
+  <!-- if ExitEOD = True so we will exit accordingly to ExchangeEndTime and else it's value = False so we exit accordingly to normaly like that StopExitMinutes -->
+  <!-- Displayable Properties for Real Time Switches -->
+  <ExitEOD value="False" />
+  <ExitSL value="True"/>
+  <ExitPT value="True"/>
+
+  <!-- Faster Version: Backtest using TickStatsData Signal created once in ProcessedMarketDataSource -->
+  <RegisterTickStatsEvent value="True"/>
+
+  <!-- Instrument and Exchange Specifications-->
+  <RegisterQuotes value="False"/>
+  <TickSize value="0.01"/>
+  <RoundingDecimals value="2"/>
+  <VWAPDecayMinutes value="5"/>
+
+  <!-- Logging and Exceptions, Set CrashStrategyException to Crash on Strategy Logical Errors -->
+  <IsLogEnabled value="True"/>
+  <CrashStrategyException value="False"/>
+
+  <!--- Trading Size -->
+  <LongTradingSize value="0"/>
+  <ShortTradingSize value="10"/>
+
+  <!-- Example: ShortTradingSize, 100, MinShortTradingSize = 50-->
+  <!-- MinShortTradingSize = 10, -->
+  
+  <!-- MaximumShortPositionSize = 200 -->
+  
+  <!-- FIDO Entry Model -->
+
+  <!-- TradingSizeEntryPercentage1 @ 50% - 50% of LongTradingSize = 1000 = 500 Shares -->
+  <TradingSizeEntryPercentage1 value="100"/>
+  <!-- TradingSizeEntryPercentage2 @ 100% - 50% of LongTradingSize = 1000 Shares = 500 Shares -->
+  <TradingSizeEntryPercentage2 value="0"/>
+
+
+  <!-- Partial Fill Implementation, Logic -->
+  <!-- This is used only in Simulation to notify ExecutionSimulator (PartialFillSimulator) to "Simulate" real time scenarios -->
+  <PartialFillEntryOrder value="False"/>
+  <PartialFillExitOrder value="False"/>
+  <IsRoundShareTo100 value="False"/>
+
+  <!-- Two Bar StopLoss Confirmation, Logic -->
+  <IsTwoBarStopLoss value="True"/>
+  <!-- Number of Seconds to Wait after Order Entry before Sending Cancel -->
+  <MaxEntryOrderSecondAliveTime value="120"/>
+
+
+
+  <!-- This will adjust the StopLoss on every TickStatsData Update
+        /// Initial Recalculation is done after 3 Minutes 
+        /// Gap between 2 StopLoss Calculations = 1 
+  
+  See Method ManageInitialStopLossLevels inside of StopLossManagers
+  This will ReAdjust the StopLoss after 3 Minutes from the Entry (Every minute on the minute)
+  from the Current Price Levels
+  If the New StopLoss uising the Original Calculation is atleast 1 StopLoss BA Spread better than the 
+  Previous Levels
+  
+  *** **** IMPORTANT => Set this FALSE if you want to allow Larger stops
+  -->
+  <ManageStopLossEveryOneMinute value="False"/>
+
+  <!-- This will change the StopLoss every 1 Minute (Setting to False) will allow to Take 
+  trades EOD: 10:10 to 16:00-->
+
+  <!-- *** **** IMPORTANT => Set this FALSE if you want to allow Larger stops -->
+
+  <IsDrawStopLossPointWithInMinute value="False"/>
+
+  <!-- Second Bar Confirmation Flexibility Offset Range -->
+  <SecondBarOffset value="10"/>
+
+  <!-- Fixed rules of Exit -->
+  <!--1. SL Rules -->
+  <!-- When we take the entry then we set the first initial Stop Loss -->
+  <!--Next Stop Loss will be re-calculate after 3 minutes from initial Stop Loss -->
+  <!--After that all Stop Loss will be re-calculate after every one  minute-->
+  <!--We will compare previous Stop Loss with current re-calculated Stopp Loss and consider lowest Stop Loss -->
+  <!-- Stop re-calculating SL point while stop loss goes half BidAskSprade value from initial stop loss  -->
+  <!--double getSLMaxValue = initialStopLoss - (stopLossBASpread / 2);-->
+  <!--2. PT Rules -->
+  <!-- we decide to take LGPT(3,5,7,10,15) before 7 minutes after that we will take SMPT(2,3,5,6,7)  -->
+  <!--3. VLPT Rules -->
+  <!--VLPT means we will lock the profit when market try to reverse then we lock the profit after reversal and above the velocity -->
+  <!--there are two conditions -->
+  <!-- Till the 7th minutes we will take VLPT after taking 3rd PT -->
+  <!-- After 7th minutes we will take VLPT after 2nd PT-->
+
+  <!--
+  <LongEntryStrategiesNames  value="LONG_HH1,LONG_LL1_ABOVE_OPEN_REV,LONG_PML_BR_VEL_GR_REV,LONG_VEL_RA_ABOVE_OPEN_REV,LONG_HH1_GR,LONG_PMHH,LONG_PML_BR_GR_REV,LONG_LL1_GR_REV,LONG_PML_BR_VWAP_GR_REV,LONG_VWAP_RA_REV,LONG_PML_GR_REV,LONG_LL1_VWAP_GR_REV,LONG_LL1_VEL_GR_REV,LONG_PML_ABOVE_OPEN_REV,LONG_VEL_RA_REV,LONG_VWAP_RA_ABOVE_OPEN_REV"/>
+  <ShortEntryStrategiesNames  value="SHORT_IMMEDIATE,SHORT_LL1,SHORT_LL1_GR,SHORT_VWAP_FD_ABOVE_OPEN_REV,SHORT_VWAP_FD_BELOW_OPEN_REV,SHORT_VEL_FD_ABOVE_OPEN_REV,SHORT_VEL_FD_BELOW_OPEN_REV,SHORT_HH1_VEL_GR_REV,SHORT_PMH_BR_VEL_GR_REV,SHORT_HH1_ABOVE_OPEN_REV,SHORT_PMH_BR_GR_REV,SHORT_PMH_BR_VWAP_GR_REV,SHORT_HH1_VWAP_GR_REV,SHORT_HH1_BELOW_OPEN_REV,SHORT_PMH_ABOVE_OPEN_VEL_GR_REV,SHORT_PMH_ABOVE_OPEN_VWAP_GR_REV,SHORT_PMH_BELOW_OPEN_VEL_GR_REV,SHORT_PMH_BELOW_OPEN_VWAP_GR_REV,SHORT_PMLL"/>
+  -->
+
+  <!-- TODO: Deepak Add New Entry Signals Here -->
+
+  <!-- Calculations for All EntrySignals Happen Here, If you want to trigger the Entry, Set it to True Above -->
+  <!-- We Should have All EntryStrategyNames here so that Dependent Entries can send Events to Other Entries -->
+  <LongEntryStrategiesNames  value="LONG_HH1,LONG_LL1_ABOVE_OPEN_REV,LONG_PML_BR_VEL_GR_REV,LONG_VEL_RA_ABOVE_OPEN_REV,LONG_HH1_GR,LONG_PMHH,LONG_PML_BR_GR_REV,LONG_LL1_GR_REV,LONG_PML_BR_VWAP_GR_REV,LONG_VWAP_RA_REV,LONG_PML_GR_REV,LONG_LL1_VWAP_GR_REV,LONG_LL1_VEL_GR_REV,LONG_PML_ABOVE_OPEN_REV,LONG_VEL_RA_REV,LONG_VWAP_RA_ABOVE_OPEN_REV,LONG_PMH_ABOVE_OPEN_VWAP_GR_REV,LONG_PMH_ABOVE_OPEN_VEL_GR_REV,LONG_PMH_BELOW_OPEN_VWAP_GR_REV,LONG_PMH_BELOW_OPEN_VEL_GR_REV,LONG_PML_ABOVE_OPEN_VEL_GR_REV,LONG_PML_ABOVE_OPEN_VWAP_GR_REV,LONG_PML_BELOW_OPEN_VEL_GR_REV,LONG_PML_BELOW_OPEN_VWAP_GR_REV"/>
+  <ShortEntryStrategiesNames  value="SHORT_LL1,SHORT_LL1_GR,SHORT_VWAP_FD_ABOVE_OPEN_REV,SHORT_VWAP_FD_BELOW_OPEN_REV,SHORT_VEL_FD_ABOVE_OPEN_REV,SHORT_VEL_FD_BELOW_OPEN_REV,SHORT_HH1_VEL_GR_REV,SHORT_PMH_BR_VEL_GR_REV,SHORT_HH1_ABOVE_OPEN_REV,SHORT_PMH_BR_GR_REV,SHORT_PMH_BR_VWAP_GR_REV,SHORT_HH1_VWAP_GR_REV,SHORT_HH1_BELOW_OPEN_REV,SHORT_PMH_ABOVE_OPEN_VEL_GR_REV,SHORT_PMH_ABOVE_OPEN_VWAP_GR_REV,SHORT_PMH_BELOW_OPEN_VEL_GR_REV,SHORT_PMH_BELOW_OPEN_VWAP_GR_REV,SHORT_PMLL,SHORT_BB_VWAP,SHORT_BB_VEL,SHORT_BB_DN_UP"/>
+
+</ABCDStrategy>
