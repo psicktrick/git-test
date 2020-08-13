@@ -39,7 +39,7 @@
   <!--  <SymbolFile value="C:\Trading\Resources\Symbols\Symbols_MD_20190215.csv"/> -->
 
   <!--To check StatsAPI for the trade -->
-  <IsStatsAPI value="False" />
+  <IsStatsAPI value="True" />
   <!--MEGHANI (Used as a Proxy for StatsAPI True, so we can test quickly without an API File-->
   <!-- When OrderExecutors is RealTime then, this is Set to False by Default -->
 
