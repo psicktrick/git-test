@@ -14,11 +14,11 @@
 
   <!--if value is False then this will be Use for stoping any new Entries due to risk trigger -->
   <!-- Aslo need to set same roperty in VWAPMasterStrategy.XML for overall strategy control-->
-  <AlgoEnabled value="False"/>
+  <AlgoEnabled value="True"/>
 
   <!--this is the Minumum All Exchange Volume for API scaning  -->
   <!--Value of MinimumStatsScannerAPIVolume is in Thousand -->
-  <MinimumStatsScannerAPIVolume value="10000"/>
+  <MinimumStatsScannerAPIVolume value="100"/>
 
   <!-- ABCD Setup Criteria -->
 
@@ -37,7 +37,7 @@
   <!-- November 28, 2018 - We are adding this as a Parameter so that we can Enter Early -->
   <!-- Best Trades are the ones that are Entered  Early from ML Analysis -->
   <!-- This is the Distance between Point A(high) and B (Deviation Low) in terms of Bars -->
-  <MinInterimBars value="3"/>
+  <MinInterimBars value="4"/>
 
   <!-- For HH1, LL1 (Trending Models) Set this to 2 and for (Reversal Entries) set this 3 since Reversals tend to happen after teh 1st 5 minutes of the Open,
    This is the distance between A and B in the ABCD Model,
